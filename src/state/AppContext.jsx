@@ -1,10 +1,11 @@
-import { createContext, useContext, useState } from 'react';
-import { initialLoans, initialOffers, walletSnapshot } from '../data/mockData';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { initialLoans, initialOffers } from '../data/mockData';
 import { calculateRepayment } from '../lib/finance';
+import { connectWallet, createDisconnectedWallet, getAvailableWallets } from '../lib/wallet';
 
 const AppContext = createContext(null);
 
-function createLoanFromOffer(offer) {
+function createLoanFromOffer(offer, walletAddress) {
   const start = new Date();
   const deadline = new Date(start.getTime() + offer.durationDays * 24 * 60 * 60 * 1000);
   const graceDeadline = new Date(deadline.getTime() + 24 * 60 * 60 * 1000);
@@ -21,15 +22,22 @@ function createLoanFromOffer(offer) {
     status: 'active',
     collateralType: offer.collateralType,
     collateralAsset: offer.collateralType === 'Ordinal' ? 'Ordinal #New' : 'BRC-20 Basket',
-    lender: offer.lender ?? walletSnapshot.address,
-    borrower: offer.borrower ?? walletSnapshot.address,
+    lender: offer.lender ?? walletAddress,
+    borrower: offer.borrower ?? walletAddress,
   };
 }
 
 export function AppProvider({ children }) {
   const [offers, setOffers] = useState(initialOffers);
   const [loans, setLoans] = useState(initialLoans);
-  const [wallet] = useState(walletSnapshot);
+  const [wallet, setWallet] = useState(createDisconnectedWallet);
+  const [wallets, setWallets] = useState([]);
+  const [walletError, setWalletError] = useState('');
+  const [isConnectingWallet, setIsConnectingWallet] = useState(false);
+
+  useEffect(() => {
+    setWallets(getAvailableWallets());
+  }, []);
 
   const createOffer = (payload) => {
     const nextOffer = {
@@ -43,13 +51,33 @@ export function AppProvider({ children }) {
     return nextOffer;
   };
 
+  const handleConnectWallet = async (providerId) => {
+    setIsConnectingWallet(true);
+    setWalletError('');
+
+    try {
+      const nextWallet = await connectWallet(providerId);
+      setWallet(nextWallet);
+      setWallets(getAvailableWallets());
+    } catch (error) {
+      setWalletError(error instanceof Error ? error.message : 'Failed to connect wallet');
+    } finally {
+      setIsConnectingWallet(false);
+    }
+  };
+
+  const disconnectWallet = () => {
+    setWallet(createDisconnectedWallet());
+    setWalletError('');
+  };
+
   const acceptOffer = (offerId) => {
     const offer = offers.find((item) => item.id === offerId);
     if (!offer) {
       return null;
     }
 
-    const loan = createLoanFromOffer(offer);
+    const loan = createLoanFromOffer(offer, wallet.address || 'wallet-not-connected');
     setOffers((current) => current.map((item) => (item.id === offerId ? { ...item, status: 'matched' } : item)));
     setLoans((current) => [loan, ...current]);
     return loan;
@@ -77,7 +105,12 @@ export function AppProvider({ children }) {
     offers,
     loans,
     wallet,
+    wallets,
+    walletError,
+    isConnectingWallet,
     dashboard,
+    connectWallet: handleConnectWallet,
+    disconnectWallet,
     createOffer,
     acceptOffer,
     repayLoan,

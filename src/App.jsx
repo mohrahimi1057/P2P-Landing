@@ -4,7 +4,7 @@ import { useAppContext } from './state/AppContext';
 import { calculateInterest, calculateRepayment, formatBtc, formatUsd, getDaysLeft } from './lib/finance';
 
 function Shell({ children }) {
-  const { wallet } = useAppContext();
+  const { wallet, wallets, walletError, isConnectingWallet, connectWallet, disconnectWallet } = useAppContext();
 
   return (
     <div className="app-shell">
@@ -21,9 +21,33 @@ function Shell({ children }) {
           <NavLink to="/borrow">Borrow</NavLink>
           <NavLink to="/dashboard">Dashboard</NavLink>
         </nav>
-        <div className="wallet-chip">
-          <span>{wallet.provider}</span>
-          <strong>{formatBtc(wallet.balanceBtc)}</strong>
+        <div className="wallet-panel">
+          {wallet.connected ? (
+            <div className="wallet-chip">
+              <span>{wallet.provider}</span>
+              <strong>{wallet.shortAddress}</strong>
+              <small>{formatBtc(wallet.balanceBtc)}</small>
+              <button type="button" className="secondary-button" onClick={disconnectWallet}>
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <div className="wallet-actions">
+              {wallets.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => connectWallet(item.id)}
+                  disabled={isConnectingWallet || !item.installed}
+                  title={item.installed ? `Connect ${item.label}` : `${item.label} extension not found`}
+                >
+                  {isConnectingWallet ? 'Connecting...' : `Connect ${item.label}`}
+                </button>
+              ))}
+            </div>
+          )}
+          {walletError ? <p className="wallet-error">{walletError}</p> : null}
         </div>
       </header>
       <main>{children}</main>
@@ -64,7 +88,7 @@ function StatCard({ label, value }) {
 }
 
 function MarketplacePage() {
-  const { offers, acceptOffer } = useAppContext();
+  const { offers, acceptOffer, wallet } = useAppContext();
   const navigate = useNavigate();
   const [filters, setFilters] = useState({
     collateralType: 'All',
@@ -139,7 +163,12 @@ function MarketplacePage() {
         </div>
         <div className="card-grid">
           {visibleOffers.map((offer) => (
-            <OfferCard key={offer.id} offer={offer} onAccept={() => handleAccept(offer.id)} />
+            <OfferCard
+              key={offer.id}
+              offer={offer}
+              canAccept={wallet.connected}
+              onAccept={() => handleAccept(offer.id)}
+            />
           ))}
         </div>
       </section>
@@ -147,7 +176,7 @@ function MarketplacePage() {
   );
 }
 
-function OfferCard({ offer, onAccept }) {
+function OfferCard({ offer, onAccept, canAccept }) {
   const projectedInterest = calculateInterest(offer.principal, offer.apr, offer.durationDays);
 
   return (
@@ -181,7 +210,9 @@ function OfferCard({ offer, onAccept }) {
           <span className="muted">Projected interest</span>
           <strong>{formatBtc(projectedInterest)}</strong>
         </div>
-        <button onClick={onAccept}>Accept</button>
+        <button onClick={onAccept} disabled={!canAccept} title={canAccept ? 'Accept offer' : 'Connect wallet first'}>
+          Accept
+        </button>
       </div>
     </article>
   );
@@ -208,7 +239,7 @@ function OfferForm({ side }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const offer = createOffer({
+    createOffer({
       side,
       principal: Number(form.principal),
       apr: Number(form.apr),
@@ -235,6 +266,11 @@ function OfferForm({ side }) {
           </p>
         </div>
         <form className="panel form-panel" onSubmit={handleSubmit}>
+          {!wallet.connected ? (
+            <div className="form-warning">
+              Connect a wallet before publishing an offer so the BTC address is attached to the listing.
+            </div>
+          ) : null}
           <label>
             Amount in BTC
             <input
@@ -312,7 +348,9 @@ function OfferForm({ side }) {
             <span>Projected repayment at maturity</span>
             <strong>{formatBtc(estimatedRepayment)}</strong>
           </div>
-          <button type="submit">{side === 'lend' ? 'Publish offer' : 'Publish request'}</button>
+          <button type="submit" disabled={!wallet.connected}>
+            {side === 'lend' ? 'Publish offer' : 'Publish request'}
+          </button>
         </form>
       </section>
     </Shell>
@@ -321,7 +359,9 @@ function OfferForm({ side }) {
 
 function DashboardPage() {
   const { loans, wallet, repayLoan } = useAppContext();
-  const userLoans = loans.filter((loan) => loan.lender === wallet.address || loan.borrower === wallet.address);
+  const userLoans = wallet.connected
+    ? loans.filter((loan) => loan.lender === wallet.address || loan.borrower === wallet.address)
+    : [];
 
   return (
     <Shell>
@@ -332,7 +372,7 @@ function DashboardPage() {
             <h1>Active loans and deadlines</h1>
           </div>
           <div className="wallet-stack">
-            <strong>{wallet.address}</strong>
+            <strong>{wallet.connected ? wallet.address : 'Wallet not connected'}</strong>
             <span>{wallet.ordinals} Ordinals</span>
             <span>{wallet.brc20Positions} BRC-20 positions</span>
           </div>

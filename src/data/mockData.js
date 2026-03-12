@@ -107,12 +107,3 @@ export const initialLoans = [
     borrower: 'bc1qborrower5...v4t',
   },
 ];
-
-export const walletSnapshot = {
-  connected: true,
-  provider: 'Unisat',
-  address: 'bc1q7m...u3z9',
-  balanceBtc: 0.742,
-  ordinals: 4,
-  brc20Positions: 3,
-};

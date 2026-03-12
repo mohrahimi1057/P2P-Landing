@@ -111,9 +111,52 @@ label {
   padding: 0.9rem 1rem;
 }
 
+.wallet-panel {
+  display: grid;
+  gap: 0.5rem;
+}
+
 .wallet-chip {
   display: grid;
   text-align: right;
+  gap: 0.3rem;
+}
+
+.wallet-chip small {
+  color: #94a3b8;
+}
+
+.wallet-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: end;
+}
+
+.secondary-button {
+  background: rgba(15, 23, 42, 0.8);
+  color: #f9fafb;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.secondary-button:disabled,
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wallet-error,
+.form-warning {
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.25);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  border-radius: 16px;
+  padding: 0.85rem 1rem;
+}
+
+.wallet-error {
+  max-width: 320px;
+  margin: 0;
 }
 
 .hero,
