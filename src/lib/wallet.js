@@ -71,21 +71,13 @@ function getUniSatProvider() {
     return null;
   }
 
-  return window.unisat ?? null;
+  return window.opnet ?? null;
 }
 
-function getXverseProvider() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  return window.XverseProviders?.BitcoinProvider ?? window.BitcoinProvider ?? null;
-}
-
-async function connectUniSat() {
+async function connectOpWallet() {
   const provider = getUniSatProvider();
   if (!provider) {
-    throw new Error('UniSat extension not found');
+    throw new Error('OP_WALLET extension not found');
   }
 
   const accounts = typeof provider.requestAccounts === 'function'
@@ -94,61 +86,15 @@ async function connectUniSat() {
   const address = normalizeAccount(accounts?.[0]);
 
   if (!address) {
-    throw new Error('UniSat did not return a BTC address');
+    throw new Error('OP_WALLET did not return a BTC address');
   }
 
   const balance = typeof provider.getBalance === 'function' ? await provider.getBalance() : null;
 
   return {
     connected: true,
-    provider: 'UniSat',
-    providerId: 'unisat',
-    address,
-    shortAddress: shortenAddress(address),
-    balanceBtc: normalizeBalance(balance),
-    ordinals: 0,
-    brc20Positions: 0,
-  };
-}
-
-async function getXverseAccounts(provider) {
-  if (typeof provider.getAccounts === 'function') {
-    return provider.getAccounts();
-  }
-
-  if (typeof provider.connect === 'function') {
-    return provider.connect();
-  }
-
-  if (typeof provider.request === 'function') {
-    return provider.request('getAccounts', {
-      purposes: ['payment'],
-      message: 'Connect wallet to SatLend',
-    });
-  }
-
-  throw new Error('Unsupported Xverse provider API');
-}
-
-async function connectXverse() {
-  const provider = getXverseProvider();
-  if (!provider) {
-    throw new Error('Xverse extension not found');
-  }
-
-  const accounts = await getXverseAccounts(provider);
-  const address = normalizeAccount(accounts?.[0] ?? accounts);
-
-  if (!address) {
-    throw new Error('Xverse did not return a BTC address');
-  }
-
-  const balance = typeof provider.getBalance === 'function' ? await provider.getBalance(address) : null;
-
-  return {
-    connected: true,
-    provider: 'Xverse',
-    providerId: 'xverse',
+    provider: 'OP_WALLET',
+    providerId: 'op_wallet',
     address,
     shortAddress: shortenAddress(address),
     balanceBtc: normalizeBalance(balance),
@@ -173,25 +119,16 @@ export function createDisconnectedWallet() {
 export function getAvailableWallets() {
   return [
     {
-      id: 'unisat',
-      label: 'UniSat',
+      id: 'op_wallet',
+      label: 'Connect OP_WALLET',
       installed: Boolean(getUniSatProvider()),
-    },
-    {
-      id: 'xverse',
-      label: 'Xverse',
-      installed: Boolean(getXverseProvider()),
     },
   ];
 }
 
 export async function connectWallet(providerId) {
-  if (providerId === 'unisat') {
-    return connectUniSat();
-  }
-
-  if (providerId === 'xverse') {
-    return connectXverse();
+  if (providerId === 'op_wallet') {
+    return connectOpWallet();
   }
 
   throw new Error(`Unsupported wallet provider: ${providerId}`);

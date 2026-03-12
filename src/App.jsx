@@ -40,9 +40,9 @@ function Shell({ children }) {
                   className="secondary-button"
                   onClick={() => connectWallet(item.id)}
                   disabled={isConnectingWallet || !item.installed}
-                  title={item.installed ? `Connect ${item.label}` : `${item.label} extension not found`}
+                  title={item.installed ? item.label : 'OP_WALLET extension not found'}
                 >
-                  {isConnectingWallet ? 'Connecting...' : `Connect ${item.label}`}
+                  {isConnectingWallet ? 'Connecting...' : item.label}
                 </button>
               ))}
             </div>
